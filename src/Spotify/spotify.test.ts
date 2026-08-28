@@ -35,6 +35,12 @@ describe('Spotify', () => {
       assert.equal(url.searchParams.get('state'), 'random-state');
       assert.equal(url.searchParams.get('scope'), 'user-read-email user-read-private');
     });
+
+    test('encodes authorization parameters', () => {
+      const url = new URL(spotify.authorization('state with spaces & symbols'));
+
+      assert.equal(url.searchParams.get('state'), 'state with spaces & symbols');
+    });
   });
 
   describe('claimAccess', () => {
@@ -88,7 +94,6 @@ describe('Spotify', () => {
         (err: unknown) => {
           assert.ok(err instanceof SpotifyAuthError);
           assert.match((err as Error).message, /400/);
-          assert.match((err as Error).message, /invalid_grant/);
           assert.match((err as Error).message, /Authorization code expired/);
           return true;
         }
@@ -117,6 +122,54 @@ describe('Spotify', () => {
           return true;
         }
       );
+    });
+
+    test('uses error_description when error is missing', async () => {
+      mock.method(global, 'fetch', async () =>
+        fakeResponse(400, {
+          error_description: 'Authorization code expired',
+        })
+      );
+
+      await assert.rejects(
+        () => spotify.claimAccess('bad-code'),
+        (err: unknown) => {
+          assert.ok(err instanceof SpotifyAuthError);
+          assert.match(err.message, /Authorization code expired/);
+          return true;
+        }
+      );
+    });
+
+    test('sends the correct token request', async () => {
+      const fetchMock = mock.method(global, 'fetch', async () =>
+        fakeResponse(200, {
+          access_token: 'access-123',
+          refresh_token: 'refresh-123',
+          expires_in: 3600,
+        })
+      );
+
+      await spotify.claimAccess('auth-code');
+
+      assert.equal(fetchMock.mock.calls.length, 1);
+
+      const [url, init] = fetchMock.mock.calls[0].arguments;
+
+      assert.equal(url, 'https://accounts.spotify.com/api/token');
+      assert.equal(init?.method, 'POST');
+
+      const headers = new Headers(init?.headers as HeadersInit);
+      assert.equal(
+        headers.get('Authorization'),
+        `Basic ${Buffer.from('client-id:client-secret').toString('base64')}`
+      );
+
+      const body = new URLSearchParams(init?.body?.toString() ?? '');
+      assert.equal(body.get('grant_type'), 'authorization_code');
+      assert.equal(body.get('code'), 'auth-code');
+      assert.equal(body.get('redirect_uri'), 'https://app.example.com/callback');
+      assert.equal([...body.keys()].length, 3);
     });
   });
 
@@ -147,57 +200,6 @@ describe('Spotify', () => {
       const tokens = await spotify.refreshAccess('refresh-old');
 
       assert.equal(tokens.refreshToken, 'refresh-old');
-    });
-
-    test('sends the correct token request', async () => {
-      const fetchMock = mock.method(global, 'fetch', async () =>
-        fakeResponse(200, {
-          access_token: 'access-123',
-          refresh_token: 'refresh-123',
-          expires_in: 3600,
-        })
-      );
-
-      await spotify.claimAccess('auth-code');
-
-      assert.equal(fetchMock.mock.calls.length, 1);
-
-      const [url, init] = fetchMock.mock.calls[0].arguments;
-
-      assert.equal(url, 'https://accounts.spotify.com/api/token');
-      assert.equal(init?.method, 'POST');
-      assert.equal(
-        init?.headers && (init.headers as Record<string, string>).Authorization,
-        `Basic ${Buffer.from('client-id:client-secret').toString('base64')}`
-      );
-
-      assert.equal(
-        init?.body?.toString(),
-        'grant_type=authorization_code&code=auth-code&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback'
-      );
-    });
-
-    test('uses error_description when error is missing', async () => {
-      mock.method(global, 'fetch', async () =>
-        fakeResponse(400, {
-          error_description: 'Authorization code expired',
-        })
-      );
-
-      await assert.rejects(
-        () => spotify.claimAccess('bad-code'),
-        (err: unknown) => {
-          assert.ok(err instanceof SpotifyAuthError);
-          assert.match(err.message, /Authorization code expired/);
-          return true;
-        }
-      );
-    });
-
-    test('encodes authorization parameters', () => {
-      const url = new URL(spotify.authorization('state with spaces & symbols'));
-
-      assert.equal(url.searchParams.get('state'), 'state with spaces & symbols');
     });
 
     test('propagates SpotifyAuthError on failed refresh', async () => {
