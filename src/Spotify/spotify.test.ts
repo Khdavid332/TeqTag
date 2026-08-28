@@ -56,7 +56,7 @@ describe('Spotify', () => {
         })
       );
 
-      const tokens = await spotify.claimAccess('auth-code');
+      const tokens = await spotify.exchangeCode('auth-code');
 
       assert.equal(tokens.accessToken, 'access-123');
       assert.equal(tokens.refreshToken, 'refresh-123');
@@ -72,7 +72,7 @@ describe('Spotify', () => {
       );
 
       await assert.rejects(
-        () => spotify.claimAccess('auth-code'),
+        () => spotify.exchangeCode('auth-code'),
         (err: unknown) => {
           assert.ok(err instanceof SpotifyAuthError);
           assert.match((err as Error).message, /did not return a refresh_token/);
@@ -90,7 +90,7 @@ describe('Spotify', () => {
       );
 
       await assert.rejects(
-        () => spotify.claimAccess('bad-code'),
+        () => spotify.exchangeCode('bad-code'),
         (err: unknown) => {
           assert.ok(err instanceof SpotifyAuthError);
           assert.match((err as Error).message, /400/);
@@ -115,7 +115,7 @@ describe('Spotify', () => {
       );
 
       await assert.rejects(
-        () => spotify.claimAccess('any-code'),
+        () => spotify.exchangeCode('any-code'),
         (err: unknown) => {
           assert.ok(err instanceof SpotifyAuthError);
           assert.match((err as Error).message, /502/);
@@ -132,7 +132,7 @@ describe('Spotify', () => {
       );
 
       await assert.rejects(
-        () => spotify.claimAccess('bad-code'),
+        () => spotify.exchangeCode('bad-code'),
         (err: unknown) => {
           assert.ok(err instanceof SpotifyAuthError);
           assert.match(err.message, /Authorization code expired/);
@@ -150,7 +150,7 @@ describe('Spotify', () => {
         })
       );
 
-      await spotify.claimAccess('auth-code');
+      await spotify.exchangeCode('auth-code');
 
       assert.equal(fetchMock.mock.calls.length, 1);
 

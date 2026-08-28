@@ -41,6 +41,15 @@ export class SpotifyAuthError extends Error {
       'Spotify did not return a refresh_token on authorization_code grant'
     );
   }
+
+  static failedRequest(cause: unknown): SpotifyAuthError {
+    const message =
+      cause instanceof DOMException && cause.name === 'TimeoutError'
+        ? 'Token request timed out'
+        : 'Token request failed';
+
+    return new SpotifyAuthError(message);
+  }
 }
 
 export class Spotify {
@@ -63,7 +72,7 @@ export class Spotify {
     return `${SPOTIFY_AUTH_URL}?${params.toString()}`;
   }
 
-  async claimAccess(code: string): Promise<SpotifyTokens> {
+  async exchangeCode(code: string): Promise<SpotifyTokens> {
     const { access_token, refresh_token, expires_in } = await this.tokenRequest(
       new URLSearchParams({
         grant_type: 'authorization_code',
@@ -101,14 +110,22 @@ export class Spotify {
   private async tokenRequest(body: URLSearchParams): Promise<SpotifyTokenResponse> {
     const key = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
 
-    const response = await fetch(SPOTIFY_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${key}`,
-      },
-      body,
-    });
+    let response: Response;
+
+    try {
+      response = await fetch(SPOTIFY_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+          Authorization: `Basic ${key}`,
+        },
+        body,
+        signal: AbortSignal.timeout(5000),
+      });
+    } catch (error) {
+      throw SpotifyAuthError.failedRequest(error);
+    }
 
     if (!response.ok) {
       throw await SpotifyAuthError.wrap(response);
