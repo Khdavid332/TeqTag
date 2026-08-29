@@ -233,8 +233,7 @@ describe('Spotify router', () => {
       assert.equal(response.status, 503);
       assert.deepEqual(await response.json(), {
         error: 'spotify_auth_failed',
-        retryable: true,
-        message: 'Spotify is down',
+        message: 'Spotify authorization failed. Please, try again later.',
       });
       assert.equal(logger.error.mock.calls.length, 1);
 
@@ -260,8 +259,7 @@ describe('Spotify router', () => {
       assert.equal(response.status, 502);
       assert.deepEqual(await response.json(), {
         error: 'spotify_auth_failed',
-        retryable: false,
-        message: 'Invalid grant',
+        message: 'Spotify authorization failed. Please, try again later.',
       });
     });
 

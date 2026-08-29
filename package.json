@@ -1,7 +1,6 @@
 {
   "name": "spotify-import",
   "version": "1.0.0",
-  "description": "Регистрация/вход через Spotify OAuth + импорт сохранённых треков пользователя",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -18,7 +17,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "express-session": "^1.18.0",
-    "uuid": "^9.0.1"
+    "uuid": "13.0.1"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

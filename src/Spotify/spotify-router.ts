@@ -24,6 +24,24 @@ export interface SpotifyTokenStore {
 
 export type UserIdResolver = (req: Request) => string;
 
+const spotifyErrorHandler = function (
+  err: unknown,
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  if (!(err instanceof SpotifyAuthError)) {
+    return next(err);
+  }
+
+  const status = err.type === SpotifyAuthErrorType.FATAL ? 502 : 503;
+
+  res.status(status).json({
+    error: 'spotify_auth_failed',
+    message: 'Spotify authorization failed. Please, try again later.',
+  });
+};
+
 export function createSpotifyRouter(
   spotify: Spotify,
   tokenStore: SpotifyTokenStore,
@@ -43,9 +61,9 @@ export function createSpotifyRouter(
   router.get('/callback', async (req: Request, res: Response, next: NextFunction) => {
     const { code, state, error } = req.query;
 
-    const expectedState = req.cookies?.[STATE_COOKIE_NAME];
+    const expectedState = req.cookies[STATE_COOKIE_NAME];
 
-    if (!expectedState || state !== expectedState) {
+    if (typeof state !== 'string' || state !== expectedState) {
       logger.warn({ hasExpectedState: !!expectedState }, 'spotify oauth state mismatch');
 
       return res.status(400).json({ error: 'invalid_state' });
@@ -110,7 +128,6 @@ export function createSpotifyRouter(
           {
             userId,
             errorType: err.type,
-            cause: err.cause,
             msg: err.message,
           },
           'spotify token refresh failed'
@@ -124,18 +141,4 @@ export function createSpotifyRouter(
   router.use(spotifyErrorHandler);
 
   return router;
-}
-
-function spotifyErrorHandler(err: unknown, _req: Request, res: Response, next: NextFunction): void {
-  if (!(err instanceof SpotifyAuthError)) {
-    return next(err);
-  }
-
-  const status = err.type === SpotifyAuthErrorType.RETRYABLE ? 503 : 502;
-
-  res.status(status).json({
-    error: 'spotify_auth_failed',
-    retryable: err.type === SpotifyAuthErrorType.RETRYABLE,
-    message: err.message,
-  });
 }
