@@ -4,15 +4,18 @@ const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 export interface SpotifyTokens {
   accessToken: string;
   refreshToken: string;
-  expiresAt: number;
+  expiresAt: Date;
+}
+
+export enum SpotifyAuthErrorType {
+  FATAL = 'fatal',
+  RETRYABLE = 'retryable',
 }
 
 interface SpotifyTokenResponse {
   access_token: string;
   refresh_token?: string;
   expires_in: number;
-  token_type: string;
-  scope: string;
 }
 
 interface SpotifyOAuthErrorResponse {
@@ -21,34 +24,55 @@ interface SpotifyOAuthErrorResponse {
 }
 
 export class SpotifyAuthError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(
+    message: string,
+    public readonly type: SpotifyAuthErrorType,
+    options?: ErrorOptions
+  ) {
+    super(message, options);
     this.name = 'SpotifyAuthError';
   }
 
   static async wrap(response: Response): Promise<SpotifyAuthError> {
     const body = (await response.json().catch(() => null)) as SpotifyOAuthErrorResponse | null;
-
     const description = body?.error_description ?? body?.error ?? 'Unknown OAuth error';
+    const type = SpotifyAuthError.classifyStatus(response.status, body?.error);
 
     return new SpotifyAuthError(
-      `Token exchange failed with status ${response.status}: ${description}`
+      `Token exchange failed with status ${response.status}: ${description}`,
+      type
     );
   }
 
   static missedRefreshToken(): SpotifyAuthError {
     return new SpotifyAuthError(
-      'Spotify did not return a refresh_token on authorization_code grant'
+      'Spotify did not return a refresh_token on authorization_code grant',
+      SpotifyAuthErrorType.FATAL
     );
   }
 
   static failedRequest(cause: unknown): SpotifyAuthError {
-    const message =
-      cause instanceof DOMException && cause.name === 'TimeoutError'
-        ? 'Token request timed out'
-        : 'Token request failed';
+    const isTimeout = cause instanceof DOMException && cause.name === 'TimeoutError';
+    const isAbort = cause instanceof DOMException && cause.name === 'AbortError';
 
-    return new SpotifyAuthError(message);
+    const message = isTimeout ? 'Token request timed out' : 'Token request failed';
+    const type = isAbort ? SpotifyAuthErrorType.FATAL : SpotifyAuthErrorType.RETRYABLE;
+
+    return new SpotifyAuthError(message, type, { cause });
+  }
+
+  private static classifyStatus(status: number, errorCode?: string): SpotifyAuthErrorType {
+    const retryableCodes = new Set(['server_error', 'temporarily_unavailable']);
+
+    if (errorCode && retryableCodes.has(errorCode)) {
+      return SpotifyAuthErrorType.RETRYABLE;
+    }
+
+    if (status === 429 || status >= 500) {
+      return SpotifyAuthErrorType.RETRYABLE;
+    }
+
+    return SpotifyAuthErrorType.FATAL;
   }
 }
 
@@ -88,7 +112,7 @@ export class Spotify {
     return {
       accessToken: access_token,
       refreshToken: refresh_token,
-      expiresAt: Date.now() + expires_in * 1000,
+      expiresAt: new Date(Date.now() + expires_in * 1000),
     };
   }
 
@@ -103,7 +127,7 @@ export class Spotify {
     return {
       accessToken: access_token,
       refreshToken: refresh_token ?? refreshToken,
-      expiresAt: Date.now() + expires_in * 1000,
+      expiresAt: new Date(Date.now() + expires_in * 1000),
     };
   }
 

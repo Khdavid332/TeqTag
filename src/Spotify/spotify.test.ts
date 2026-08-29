@@ -1,6 +1,6 @@
-import { test, describe, beforeEach, afterEach, mock } from 'node:test';
+import { afterEach, beforeEach, describe, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Spotify, SpotifyAuthError } from './spotify';
+import { Spotify, SpotifyAuthError, SpotifyAuthErrorType } from './spotify';
 
 function fakeResponse(status: number, body: unknown, ok = status >= 200 && status < 300): Response {
   return {
@@ -43,7 +43,7 @@ describe('Spotify', () => {
     });
   });
 
-  describe('claimAccess', () => {
+  describe('exchangeCode', () => {
     test('exchanges code for tokens', async () => {
       const now = Date.now();
       mock.method(global, 'fetch', async () =>
@@ -60,7 +60,7 @@ describe('Spotify', () => {
 
       assert.equal(tokens.accessToken, 'access-123');
       assert.equal(tokens.refreshToken, 'refresh-123');
-      assert.ok(tokens.expiresAt >= now + 3600 * 1000);
+      assert.ok(tokens.expiresAt >= new Date(now + 3600 * 1000));
     });
 
     test('throws when Spotify does not return a refresh_token', async () => {
@@ -209,5 +209,90 @@ describe('Spotify', () => {
 
       await assert.rejects(() => spotify.refreshAccess('revoked-token'), SpotifyAuthError);
     });
+  });
+
+  test('marks 429 as retryable', async () => {
+    mock.method(global, 'fetch', async () => fakeResponse(429, { error: 'rate_limited' }));
+
+    await assert.rejects(
+      () => spotify.exchangeCode('auth-code'),
+      (err: unknown) => {
+        assert.ok(err instanceof SpotifyAuthError);
+        assert.equal((err as SpotifyAuthError).type, SpotifyAuthErrorType.RETRYABLE);
+        return true;
+      }
+    );
+  });
+
+  test('marks 5xx as retryable', async () => {
+    mock.method(global, 'fetch', async () => fakeResponse(503, { error: 'server_error' }));
+
+    await assert.rejects(
+      () => spotify.exchangeCode('auth-code'),
+      (err: unknown) => (err as SpotifyAuthError).type === SpotifyAuthErrorType.RETRYABLE
+    );
+  });
+
+  test('marks invalid_grant as fatal', async () => {
+    mock.method(global, 'fetch', async () =>
+      fakeResponse(400, { error: 'invalid_grant', error_description: 'Authorization code expired' })
+    );
+
+    await assert.rejects(
+      () => spotify.exchangeCode('bad-code'),
+      (err: unknown) => (err as SpotifyAuthError).type === SpotifyAuthErrorType.FATAL
+    );
+  });
+
+  test('marks temporarily_unavailable as retryable even on 400', async () => {
+    mock.method(global, 'fetch', async () =>
+      fakeResponse(400, { error: 'temporarily_unavailable' })
+    );
+
+    await assert.rejects(
+      () => spotify.exchangeCode('auth-code'),
+      (err: unknown) => (err as SpotifyAuthError).type === SpotifyAuthErrorType.RETRYABLE
+    );
+  });
+
+  test('wraps network failure as retryable', async () => {
+    mock.method(global, 'fetch', async () => {
+      throw new TypeError('fetch failed');
+    });
+
+    await assert.rejects(
+      () => spotify.exchangeCode('auth-code'),
+      (err: unknown) => {
+        assert.ok(err instanceof SpotifyAuthError);
+        assert.equal((err as SpotifyAuthError).type, SpotifyAuthErrorType.RETRYABLE);
+        return true;
+      }
+    );
+  });
+
+  test('wraps timeout as retryable with correct message', async () => {
+    mock.method(global, 'fetch', async () => {
+      throw new DOMException('The operation timed out', 'TimeoutError');
+    });
+
+    await assert.rejects(
+      () => spotify.exchangeCode('auth-code'),
+      (err: unknown) => {
+        assert.match((err as Error).message, /timed out/);
+        assert.equal((err as SpotifyAuthError).type, SpotifyAuthErrorType.RETRYABLE);
+        return true;
+      }
+    );
+  });
+
+  test('wraps abort as fatal', async () => {
+    mock.method(global, 'fetch', async () => {
+      throw new DOMException('The operation was aborted', 'AbortError');
+    });
+
+    await assert.rejects(
+      () => spotify.exchangeCode('auth-code'),
+      (err: unknown) => (err as SpotifyAuthError).type === SpotifyAuthErrorType.FATAL
+    );
   });
 });
