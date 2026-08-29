@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Spotify, SpotifyAuthError, SpotifyAuthErrorType } from './spotify';
+import { Spotify, SpotifyAuthError, SpotifyAuthErrorType } from '../spotify';
 
 function fakeResponse(status: number, body: unknown, ok = status >= 200 && status < 300): Response {
   return {

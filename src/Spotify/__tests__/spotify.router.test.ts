@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Server } from 'node:http';
 
-import { createSpotifyRouter, type Logger, type SpotifyTokenStore } from './spotify-router';
-import { Spotify, SpotifyAuthError, SpotifyAuthErrorType, type SpotifyTokens } from './spotify';
+import { createSpotifyRouter, type Logger, type SpotifyTokenStore } from '../spotify.router';
+import { Spotify, SpotifyAuthError, SpotifyAuthErrorType, type SpotifyTokens } from '../spotify';
 
 function extractCookiePair(setCookieHeader: string): string {
   return setCookieHeader.split(';')[0];
