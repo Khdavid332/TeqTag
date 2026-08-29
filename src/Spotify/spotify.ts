@@ -53,12 +53,9 @@ export class SpotifyAuthError extends Error {
 
   static failedRequest(cause: unknown): SpotifyAuthError {
     const isTimeout = cause instanceof DOMException && cause.name === 'TimeoutError';
-    const isAbort = cause instanceof DOMException && cause.name === 'AbortError';
-
     const message = isTimeout ? 'Token request timed out' : 'Token request failed';
-    const type = isAbort ? SpotifyAuthErrorType.FATAL : SpotifyAuthErrorType.RETRYABLE;
 
-    return new SpotifyAuthError(message, type, { cause });
+    return new SpotifyAuthError(message, SpotifyAuthErrorType.RETRYABLE, { cause });
   }
 
   private static classifyStatus(status: number, errorCode?: string): SpotifyAuthErrorType {

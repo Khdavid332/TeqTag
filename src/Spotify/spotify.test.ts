@@ -284,15 +284,4 @@ describe('Spotify', () => {
       }
     );
   });
-
-  test('wraps abort as fatal', async () => {
-    mock.method(global, 'fetch', async () => {
-      throw new DOMException('The operation was aborted', 'AbortError');
-    });
-
-    await assert.rejects(
-      () => spotify.exchangeCode('auth-code'),
-      (err: unknown) => (err as SpotifyAuthError).type === SpotifyAuthErrorType.FATAL
-    );
-  });
 });
