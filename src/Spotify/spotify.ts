@@ -129,7 +129,7 @@ export class Spotify {
   }
 
   private async tokenRequest(body: URLSearchParams): Promise<SpotifyTokenResponse> {
-    const key = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const basicAuthHeader = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
 
     let response: Response;
 
@@ -139,7 +139,7 @@ export class Spotify {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           Accept: 'application/json',
-          Authorization: `Basic ${key}`,
+          Authorization: `Basic ${basicAuthHeader}`,
         },
         body,
         signal: AbortSignal.timeout(5000),
