@@ -24,6 +24,7 @@ describe('SpotifyService', () => {
         {
           provide: spotifyConfig.KEY,
           useValue: {
+            timeout: 5000,
             clientId: 'client-id',
             clientSecret: 'client-secret',
             redirectUrl: 'https://app.example.com/callback',
