@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { SpotifyController } from './spotify.controller';
 import { SpotifyService } from './services/spotify.service';
 import { TokenStoreService } from './services/token-store.service';
 import { SPOTIFY_TOKEN_STORE } from './constants/spotify.constants';
+import spotifyConfig from './spotify.config';
 
 @Module({
+  imports: [ConfigModule.forFeature(spotifyConfig)],
   controllers: [SpotifyController],
   providers: [
     SpotifyService,

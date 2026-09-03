@@ -1,38 +1,23 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { SPOTIFY_AUTH_URL, SPOTIFY_TOKEN_URL } from '../constants/spotify.constants';
 import { SpotifyTokens, SpotifyTokenResponse } from '../interfaces/spotify.interface';
 import { SpotifyAuthError } from '../exceptions/spotify-auth.error';
+import spotifyConfig from '../spotify.config';
 
 @Injectable()
 export class SpotifyService {
-  private clientId: string;
-  private clientSecret: string;
-  private redirectUrl: string;
-  private scopes: string[];
-
-  constructor(private readonly configService: ConfigService) {
-    this.clientId = this.configService.get<string>('SPOTIFY_CLIENT_ID') || '';
-    this.clientSecret = this.configService.get<string>('SPOTIFY_CLIENT_SECRET') || '';
-    this.redirectUrl = this.configService.get<string>('SPOTIFY_REDIRECT_URI') || '';
-    this.scopes = ['user-read-email', 'user-read-private'];
-  }
-
-  setOptions(options: { clientId: string; clientSecret: string; redirectUrl: string; scopes?: string[] }) {
-    this.clientId = options.clientId;
-    this.clientSecret = options.clientSecret;
-    this.redirectUrl = options.redirectUrl;
-    if (options.scopes) {
-      this.scopes = options.scopes;
-    }
-  }
+  constructor(
+    @Inject(spotifyConfig.KEY)
+    private readonly config: ConfigType<typeof spotifyConfig>
+  ) {}
 
   authorization(state: string): string {
     const params = new URLSearchParams({
       response_type: 'code',
-      client_id: this.clientId,
-      scope: this.scopes.join(' '),
-      redirect_uri: this.redirectUrl,
+      client_id: this.config.clientId,
+      scope: this.config.scopes.join(' '),
+      redirect_uri: this.config.redirectUrl,
       state,
     });
 
@@ -44,7 +29,7 @@ export class SpotifyService {
       new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: this.redirectUrl,
+        redirect_uri: this.config.redirectUrl,
       })
     );
 
@@ -75,7 +60,9 @@ export class SpotifyService {
   }
 
   private async tokenRequest(body: URLSearchParams): Promise<SpotifyTokenResponse> {
-    const basicAuthHeader = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const basicAuthHeader = Buffer.from(
+      `${this.config.clientId}:${this.config.clientSecret}`
+    ).toString('base64');
 
     let response: Response;
 

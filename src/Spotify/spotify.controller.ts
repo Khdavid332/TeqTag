@@ -61,7 +61,9 @@ export class SpotifyController {
 
     if (typeof error === 'string') {
       this.logger.warn({ error }, 'spotify authorization denied by user');
-      res.status(HttpStatus.BAD_REQUEST).json({ error: 'spotify_authorization_denied', detail: error });
+      res
+        .status(HttpStatus.BAD_REQUEST)
+        .json({ error: 'spotify_authorization_denied', detail: error });
       return;
     }
 
@@ -81,10 +83,7 @@ export class SpotifyController {
   }
 
   @Post('refresh')
-  async refresh(
-    @Res() res: Response,
-    @CurrentUser() userId = 'user-123'
-  ): Promise<void> {
+  async refresh(@Res() res: Response, @CurrentUser() userId = 'user-123'): Promise<void> {
     try {
       const existing = await this.tokenStore.load(userId);
 

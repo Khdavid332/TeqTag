@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
 import { SpotifyService } from '../services/spotify.service';
 import { SpotifyAuthError, SpotifyAuthErrorType } from '../exceptions/spotify-auth.error';
+import spotifyConfig from '../spotify.config';
 
 function fakeResponse(status: number, body: unknown, ok = status >= 200 && status < 300): Response {
   return {
@@ -22,14 +22,12 @@ describe('SpotifyService', () => {
       providers: [
         SpotifyService,
         {
-          provide: ConfigService,
+          provide: spotifyConfig.KEY,
           useValue: {
-            get: (key: string) => {
-              if (key === 'SPOTIFY_CLIENT_ID') return 'client-id';
-              if (key === 'SPOTIFY_CLIENT_SECRET') return 'client-secret';
-              if (key === 'SPOTIFY_REDIRECT_URI') return 'https://app.example.com/callback';
-              return undefined;
-            },
+            clientId: 'client-id',
+            clientSecret: 'client-secret',
+            redirectUrl: 'https://app.example.com/callback',
+            scopes: ['user-read-email', 'user-read-private'],
           },
         },
       ],
@@ -181,9 +179,11 @@ describe('SpotifyService', () => {
     });
 
     it('propagates SpotifyAuthError on failed refresh', async () => {
-      global.fetch = jest.fn().mockResolvedValue(
-        fakeResponse(401, { error: 'invalid_grant', error_description: 'Refresh token revoked' })
-      );
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(
+          fakeResponse(401, { error: 'invalid_grant', error_description: 'Refresh token revoked' })
+        );
 
       await expect(service.refreshAccess('revoked-token')).rejects.toThrow(SpotifyAuthError);
     });
@@ -207,9 +207,14 @@ describe('SpotifyService', () => {
     });
 
     it('marks invalid_grant as fatal', async () => {
-      global.fetch = jest.fn().mockResolvedValue(
-        fakeResponse(400, { error: 'invalid_grant', error_description: 'Authorization code expired' })
-      );
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(
+          fakeResponse(400, {
+            error: 'invalid_grant',
+            error_description: 'Authorization code expired',
+          })
+        );
 
       await expect(service.exchangeCode('bad-code')).rejects.toMatchObject({
         type: SpotifyAuthErrorType.FATAL,
@@ -217,9 +222,9 @@ describe('SpotifyService', () => {
     });
 
     it('marks temporarily_unavailable as retryable even on 400', async () => {
-      global.fetch = jest.fn().mockResolvedValue(
-        fakeResponse(400, { error: 'temporarily_unavailable' })
-      );
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(fakeResponse(400, { error: 'temporarily_unavailable' }));
 
       await expect(service.exchangeCode('auth-code')).rejects.toMatchObject({
         type: SpotifyAuthErrorType.RETRYABLE,
@@ -235,7 +240,9 @@ describe('SpotifyService', () => {
     });
 
     it('wraps timeout as retryable with correct message', async () => {
-      global.fetch = jest.fn().mockRejectedValue(new DOMException('The operation timed out', 'TimeoutError'));
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(new DOMException('The operation timed out', 'TimeoutError'));
 
       await expect(service.exchangeCode('auth-code')).rejects.toMatchObject({
         message: expect.stringContaining('timed out'),

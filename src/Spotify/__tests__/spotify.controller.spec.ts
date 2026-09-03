@@ -87,7 +87,9 @@ describe('Spotify Controller & App (e2e/integration)', () => {
 
   describe('GET /spotify/callback', () => {
     it('rejects when no state cookie was ever set', async () => {
-      const res = await request(app.getHttpServer()).get('/spotify/callback?state=whatever&code=abc');
+      const res = await request(app.getHttpServer()).get(
+        '/spotify/callback?state=whatever&code=abc'
+      );
 
       expect(res.status).toBe(400);
       expect(res.body).toEqual({ error: 'invalid_state' });
