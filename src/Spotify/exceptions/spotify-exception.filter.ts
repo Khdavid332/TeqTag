@@ -8,7 +8,13 @@ export class SpotifyExceptionFilter implements ExceptionFilter {
 
   catch(exception: SpotifyAuthError, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
+
+    this.logger.error(
+      { path: request.url, errorType: exception.type, msg: exception.message },
+      'spotify auth error'
+    );
 
     const status =
       exception.type === SpotifyAuthErrorType.FATAL

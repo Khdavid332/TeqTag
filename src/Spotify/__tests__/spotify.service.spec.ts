@@ -207,14 +207,12 @@ describe('SpotifyService', () => {
     });
 
     it('marks invalid_grant as fatal', async () => {
-      global.fetch = jest
-        .fn()
-        .mockResolvedValue(
-          fakeResponse(400, {
-            error: 'invalid_grant',
-            error_description: 'Authorization code expired',
-          })
-        );
+      global.fetch = jest.fn().mockResolvedValue(
+        fakeResponse(400, {
+          error: 'invalid_grant',
+          error_description: 'Authorization code expired',
+        })
+      );
 
       await expect(service.exchangeCode('bad-code')).rejects.toMatchObject({
         type: SpotifyAuthErrorType.FATAL,
