@@ -1,5 +1,3 @@
-import * as util from 'node:util';
-
 export enum SpotifyAuthErrorType {
   FATAL = 'fatal',
   RETRYABLE = 'retryable',
@@ -24,7 +22,7 @@ export class SpotifyAuthError extends Error {
     const type = SpotifyAuthError.classifyStatus(response.status, body?.error);
 
     return new SpotifyAuthError(
-      util.format('Token exchange failed with status %d: %s', response.status, description),
+      `Token exchange failed with status ${response.status}: ${description}`,
       type
     );
   }

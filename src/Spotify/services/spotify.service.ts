@@ -4,7 +4,6 @@ import { SPOTIFY_AUTH_URL, SPOTIFY_TOKEN_URL } from '../constants/spotify.consta
 import { SpotifyTokens, SpotifyTokenResponse } from '../interfaces/spotify.interface';
 import { SpotifyAuthError } from '../exceptions/spotify-auth.error';
 import spotifyConfig from '../spotify.config';
-import * as util from 'node:util';
 
 @Injectable()
 export class SpotifyService {
@@ -22,7 +21,7 @@ export class SpotifyService {
       state,
     });
 
-    return util.format('%s?%s', SPOTIFY_AUTH_URL, params);
+    return `${SPOTIFY_AUTH_URL}?${params}`;
   }
 
   async exchangeCode(code: string): Promise<SpotifyTokens> {
@@ -61,7 +60,7 @@ export class SpotifyService {
   }
 
   private async tokenRequest(body: URLSearchParams): Promise<SpotifyTokenResponse> {
-    const credentials = util.format('%s:%s', this.config.clientId, this.config.clientSecret);
+    const credentials = `${this.config.clientId}:${this.config.clientSecret}`;
     const basicAuthHeader = Buffer.from(credentials).toString('base64');
 
     let response: Response;
@@ -72,7 +71,7 @@ export class SpotifyService {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           Accept: 'application/json',
-          Authorization: util.format('Basic %s', basicAuthHeader),
+          Authorization: `Basic ${basicAuthHeader}`,
         },
         body,
         signal: AbortSignal.timeout(this.config.timeout),
