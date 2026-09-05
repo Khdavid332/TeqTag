@@ -10,7 +10,26 @@ export interface SpotifyTokenResponse {
   expires_in: number;
 }
 
-export interface SpotifyOAuthErrorResponse {
-  error: string;
-  error_description?: string;
+export interface SpotifyTrack {
+  name: string;
+  artists: SpotifyArtist[];
+}
+
+export interface SpotifyArtist {
+  name: string;
+}
+
+export interface SpotifySavedTracksResponse {
+  href: string;
+  limit: number;
+  next: string | null;
+  offset: number;
+  previous: string | null;
+  total: number;
+  items: SpotifySavedTrack[];
+}
+
+export interface SpotifySavedTrack {
+  added_at: string;
+  track: SpotifyTrack;
 }
