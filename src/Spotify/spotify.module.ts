@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { SpotifyController } from './spotify.controller';
 import { SpotifyService } from './services/spotify.service';
+import { SpotifyClient } from './services/spotify.client';
 import { TokenStoreService } from './services/token-store.service';
 import { SPOTIFY_TOKEN_STORE } from './constants/spotify.constants';
 import spotifyConfig from './spotify.config';
@@ -11,12 +12,13 @@ import spotifyConfig from './spotify.config';
   controllers: [SpotifyController],
   providers: [
     SpotifyService,
+    SpotifyClient,
     TokenStoreService,
     {
       provide: SPOTIFY_TOKEN_STORE,
       useExisting: TokenStoreService,
     },
   ],
-  exports: [SpotifyService, TokenStoreService, SPOTIFY_TOKEN_STORE],
+  exports: [SpotifyService, SpotifyClient, TokenStoreService, SPOTIFY_TOKEN_STORE],
 })
 export class SpotifyModule {}
