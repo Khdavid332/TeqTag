@@ -1,5 +1,6 @@
 export enum SpotifyAuthErrorType {
   FATAL = 'fatal',
+  UNAUTHORIZED = 'unauthorized',
   RETRYABLE = 'retryable',
 }
 
@@ -13,7 +14,7 @@ export class SpotifyAuthError extends Error {
     this.name = 'SpotifyAuthError';
   }
 
-  static async wrap(response: Response): Promise<SpotifyAuthError> {
+  static async wrapResponse(response: Response): Promise<SpotifyAuthError> {
     const body = (await response.json().catch(() => null)) as {
       error?: string;
       error_description?: string;
@@ -50,6 +51,10 @@ export class SpotifyAuthError extends Error {
 
     if (status === 429 || status >= 500) {
       return SpotifyAuthErrorType.RETRYABLE;
+    }
+
+    if (errorCode === 'invalid_grant') {
+      return SpotifyAuthErrorType.UNAUTHORIZED;
     }
 
     return SpotifyAuthErrorType.FATAL;

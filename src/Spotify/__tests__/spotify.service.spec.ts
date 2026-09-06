@@ -101,7 +101,7 @@ describe('SpotifyService', () => {
 
       await expect(service.exchangeCode('bad-code')).rejects.toMatchObject({
         message: expect.stringContaining('Authorization code expired'),
-        type: SpotifyAuthErrorType.FATAL,
+        type: SpotifyAuthErrorType.UNAUTHORIZED,
       });
     });
 
@@ -180,11 +180,12 @@ describe('SpotifyService', () => {
     });
 
     it('propagates SpotifyAuthError on failed refresh', async () => {
-      global.fetch = jest
-        .fn()
-        .mockResolvedValue(
-          fakeResponse(401, { error: 'invalid_grant', error_description: 'Refresh token revoked' })
-        );
+      global.fetch = jest.fn().mockResolvedValue(
+        fakeResponse(401, {
+          error: 'invalid_grant',
+          error_description: 'Refresh token revoked',
+        })
+      );
 
       await expect(service.refreshAccess('revoked-token')).rejects.toThrow(SpotifyAuthError);
     });
@@ -212,6 +213,19 @@ describe('SpotifyService', () => {
         fakeResponse(400, {
           error: 'invalid_grant',
           error_description: 'Authorization code expired',
+        })
+      );
+
+      await expect(service.exchangeCode('bad-code')).rejects.toMatchObject({
+        type: SpotifyAuthErrorType.UNAUTHORIZED,
+      });
+    });
+
+    it('marks unexpected 400 response as fatal', async () => {
+      global.fetch = jest.fn().mockResolvedValue(
+        fakeResponse(400, {
+          error: 'unexpected',
+          error_description: 'Unexpected response occured',
         })
       );
 

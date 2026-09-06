@@ -1,6 +1,30 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpStatus, Logger } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { SpotifyAuthError, SpotifyAuthErrorType } from './spotify-auth.error';
+
+interface ErrorResponseBody {
+  status: HttpStatus;
+  error: string;
+  message: string;
+}
+
+const ERROR_RESPONSES: Record<SpotifyAuthErrorType, ErrorResponseBody> = {
+  [SpotifyAuthErrorType.UNAUTHORIZED]: {
+    status: HttpStatus.UNAUTHORIZED,
+    error: 'spotify_reauthorization_required',
+    message: 'Your Spotify connection has expired. Please reconnect your Spotify account.',
+  },
+  [SpotifyAuthErrorType.RETRYABLE]: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    error: 'spotify_auth_failed',
+    message: 'Spotify authorization failed. Please try again later.',
+  },
+  [SpotifyAuthErrorType.FATAL]: {
+    status: HttpStatus.BAD_GATEWAY,
+    error: 'spotify_auth_failed',
+    message: 'Spotify authorization failed. Please try again later.',
+  },
+};
 
 @Catch(SpotifyAuthError)
 export class SpotifyExceptionFilter implements ExceptionFilter {
@@ -12,18 +36,12 @@ export class SpotifyExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
 
     this.logger.error(
-      { path: request.url, errorType: exception.type, msg: exception.message },
+      { path: request.url, errorType: exception.type, message: exception.message },
       'spotify auth error'
     );
 
-    const status =
-      exception.type === SpotifyAuthErrorType.FATAL
-        ? HttpStatus.BAD_GATEWAY
-        : HttpStatus.SERVICE_UNAVAILABLE;
+    const { status, error, message } = ERROR_RESPONSES[exception.type];
 
-    response.status(status).json({
-      error: 'spotify_auth_failed',
-      message: 'Spotify authorization failed. Please, try again later.',
-    });
+    response.status(status).json({ error, message });
   }
 }

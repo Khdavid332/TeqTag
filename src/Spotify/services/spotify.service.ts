@@ -81,7 +81,7 @@ export class SpotifyService {
     }
 
     if (!response.ok) {
-      throw await SpotifyAuthError.wrap(response);
+      throw await SpotifyAuthError.wrapResponse(response);
     }
 
     return (await response.json()) as SpotifyTokenResponse;
